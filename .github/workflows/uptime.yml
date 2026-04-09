@@ -1,15 +1,85 @@
 name: Uptime CI
 on:
   schedule:
-    - cron: "0 * * * *"   # jede Stunde (GitHub Free: max 2000 min/Monat)
-  workflow_dispatch:       # manuell auslösbar
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
-  uptime:
-    name: Check services
+  check:
+    name: Check services & update status page
     runs-on: ubuntu-latest
     steps:
-      - name: Upptime uptime monitor
-        uses: upptime/uptime-monitor@v1.41.0
+      - uses: actions/checkout@v4
         with:
-          UPPTIME_GH_PAT: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Check services
+        id: check
+        run: |
+          check_url() {
+            local name="$1"
+            local url="$2"
+            local method="${3:-GET}"
+            local body="$4"
+            if [ "$method" = "POST" ]; then
+              code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$url" \
+                -H "Content-Type: application/json" -d "$body" --max-time 10 || echo "000")
+            else
+              code=$(curl -s -o /dev/null -w "%{http_code}" "$url" --max-time 10 || echo "000")
+            fi
+            if [ "$code" = "200" ] || [ "$code" = "301" ] || [ "$code" = "302" ]; then
+              echo "up"
+            else
+              echo "down:$code"
+            fi
+          }
+
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          S1=$(check_url "ki-os.org" "https://ki-os.org")
+          S2=$(check_url "GitHub" "https://github.com/KI-OS-org/ki-os")
+          S3=$(check_url "updates.ki-os.org" "https://updates.ki-os.org/community/ping" "POST" \
+            '{"instanceId":"00000000-0000-0000-0000-000000000000","version":"0.0.0","edition":"status-check","platform":"linux","node":"v20"}')
+
+          mkdir -p data
+          echo "{\"ts\":\"$TS\",\"services\":{\"ki-os.org\":\"$S1\",\"github\":\"$S2\",\"updates\":\"$S3\"}}" \
+            >> data/history.ndjson
+
+          # Keep last 8760 entries (1 year hourly)
+          tail -8760 data/history.ndjson > data/history.tmp && mv data/history.tmp data/history.ndjson
+
+          # Latest status JSON
+          echo "{\"ts\":\"$TS\",\"ki_os_org\":\"$S1\",\"github\":\"$S2\",\"updates\":\"$S3\"}" > data/status.json
+
+          echo "ts=$TS" >> $GITHUB_OUTPUT
+          echo "ki_os_org=$S1" >> $GITHUB_OUTPUT
+          echo "github=$S2" >> $GITHUB_OUTPUT
+          echo "updates=$S3" >> $GITHUB_OUTPUT
+
+      - name: Generate status page
+        run: |
+          cp public/index.html /tmp/index.html
+          mkdir -p gh-pages-out
+          cp -r public/* gh-pages-out/ 2>/dev/null || true
+          cp data/status.json gh-pages-out/status.json
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GH_PAT }}
+          publish_dir: ./gh-pages-out
+          publish_branch: gh-pages
+          cname: status.ki-os.org
+
+      - name: Commit history
+        run: |
+          git config user.name "Kimba"
+          git config user.email "kimba@ki-os.org"
+          git add data/
+          git diff --staged --quiet || git commit -m "status: update $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push

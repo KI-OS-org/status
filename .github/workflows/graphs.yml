@@ -1,16 +1,62 @@
 name: Response Time Graphs
 on:
   schedule:
-    - cron: "0 0 * * *"   # täglich um Mitternacht
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
   graphs:
-    name: Generate response time graphs
+    name: Generate 90-day uptime summary
     runs-on: ubuntu-latest
     steps:
-      - name: Upptime graphs
-        uses: upptime/uptime-monitor@v1.41.0
+      - uses: actions/checkout@v4
         with:
-          UPPTIME_GH_PAT: ${{ secrets.GH_PAT }}
-          TYPE: graphs
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Calculate uptime stats
+        run: |
+          mkdir -p data
+          if [ ! -f data/history.ndjson ]; then echo "No history yet"; exit 0; fi
+
+          # 90-day uptime per service
+          CUTOFF=$(date -u -d "90 days ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
+                   date -u -v-90d +"%Y-%m-%dT%H:%M:%SZ")
+
+          python3 - <<'PYEOF'
+          import json, sys
+          from datetime import datetime, timezone, timedelta
+
+          cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+          services = {"ki-os.org": 0, "github": 0, "updates": 0}
+          totals   = {"ki-os.org": 0, "github": 0, "updates": 0}
+
+          with open("data/history.ndjson") as f:
+            for line in f:
+              try:
+                r = json.loads(line)
+                ts = datetime.fromisoformat(r["ts"].replace("Z","+00:00"))
+                if ts < cutoff: continue
+                s = r["services"]
+                for k in services:
+                  key = k.replace("-","_").replace(".","_")
+                  val = s.get(k, s.get(key, "unknown"))
+                  totals[k] += 1
+                  if val == "up": services[k] += 1
+              except: pass
+
+          result = {}
+          for k in services:
+            pct = round(services[k]/totals[k]*100, 2) if totals[k] else 0
+            result[k] = {"up": services[k], "total": totals[k], "pct": pct}
+          print(json.dumps(result, indent=2))
+          with open("data/uptime90.json","w") as f:
+            json.dump(result, f)
+          PYEOF
+
+      - name: Commit uptime stats
+        run: |
+          git config user.name "Kimba"
+          git config user.email "kimba@ki-os.org"
+          git add data/uptime90.json 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "stats: 90-day uptime update $(date -u +%Y-%m-%d)"
+          git push
