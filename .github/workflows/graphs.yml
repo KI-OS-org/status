@@ -1,0 +1,16 @@
+name: Response Time Graphs
+on:
+  schedule:
+    - cron: "0 0 * * *"   # täglich um Mitternacht
+  workflow_dispatch:
+
+jobs:
+  graphs:
+    name: Generate response time graphs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upptime graphs
+        uses: upptime/uptime-monitor@v2
+        with:
+          UPPTIME_GH_PAT: ${{ secrets.GH_PAT }}
+          TYPE: graphs

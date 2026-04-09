@@ -1,0 +1,17 @@
+name: Static Site CI
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  static-site:
+    name: Deploy status page to GitHub Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upptime static site
+        uses: upptime/uptime-monitor@v2
+        with:
+          UPPTIME_GH_PAT: ${{ secrets.GH_PAT }}
+          TYPE: static-site

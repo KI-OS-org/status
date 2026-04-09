@@ -1,0 +1,16 @@
+name: Summary CI
+on:
+  schedule:
+    - cron: "0 23 * * *"  # täglich
+  workflow_dispatch:
+
+jobs:
+  summary:
+    name: Update README summary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upptime summary
+        uses: upptime/uptime-monitor@v2
+        with:
+          UPPTIME_GH_PAT: ${{ secrets.GH_PAT }}
+          TYPE: summary

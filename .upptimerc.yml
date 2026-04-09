@@ -1,0 +1,44 @@
+# Upptime Configuration — KI-OS Status Page
+# Repo: KI-OS-org/status
+# Live: https://status.ki-os.org
+
+owner: KI-OS-org
+repo: status
+userAgent: KI-OS-Status/1.0
+
+sites:
+  - name: ki-os.org
+    url: https://ki-os.org
+    expectedStatusCodes:
+      - 200
+      - 301
+      - 302
+
+  - name: Community Edition (GitHub)
+    url: https://github.com/KI-OS-org/ki-os
+    expectedStatusCodes:
+      - 200
+
+  - name: updates.ki-os.org
+    url: https://updates.ki-os.org/community/ping
+    method: POST
+    body: '{"instanceId":"00000000-0000-0000-0000-000000000000","version":"0.0.0","edition":"status-check","platform":"linux","node":"v20"}'
+    headers:
+      Content-Type: application/json
+    expectedStatusCodes:
+      - 200
+
+status-website:
+  cname: status.ki-os.org
+  name: KI-OS Status
+  description: Real-time status and uptime for all KI-OS services
+  theme: dark
+  introTitle: "🦁 KI-OS System Status"
+  introMessage: "Current status and 90-day uptime history for all KI-OS services."
+  navbar:
+    - title: ki-os.org
+      href: https://ki-os.org
+    - title: Community Edition
+      href: https://github.com/KI-OS-org/ki-os
+    - title: Enterprise
+      href: mailto:enterprise@ki-os.org
