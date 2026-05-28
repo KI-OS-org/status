@@ -619,3 +619,4 @@
 {"ts":"2026-05-27T21:51:42Z","services":{"ki-os.org":"up","github":"down:404","updates":"up"}}
 {"ts":"2026-05-27T23:14:15Z","services":{"ki-os.org":"up","github":"down:404","updates":"up"}}
 {"ts":"2026-05-28T02:52:15Z","services":{"ki-os.org":"up","github":"down:404","updates":"up"}}
+{"ts":"2026-05-28T06:52:46Z","services":{"ki-os.org":"down:000000","github":"down:404","updates":"down:000000"}}
